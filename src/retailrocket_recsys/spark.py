@@ -19,4 +19,6 @@ def get_spark_session(config: AppConfig, master: str | None = None) -> SparkSess
         .config("spark.sql.adaptive.enabled", str(spark_conf.get("adaptive_enabled", True)).lower())
         .config("spark.local.dir", str(local_dir.resolve()))
     )
+    for key, value in spark_conf.get("extra_conf", {}).items():
+        builder = builder.config(key, str(value))
     return builder.getOrCreate()
