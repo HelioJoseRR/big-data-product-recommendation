@@ -6,12 +6,14 @@ Implementar uma pipeline local e reproduzivel em Python + Apache Spark para aval
 
 ## Dataset
 
-Baixe o RetailRocket eCommerce Dataset no Kaggle e coloque os CSVs em `data/` ou `data/raw/`:
+Baixe o RetailRocket eCommerce Dataset no Kaggle e coloque os CSVs em `data/raw/`:
 
 - `events.csv`
 - `item_properties_part1.csv`
 - `item_properties_part2.csv`
 - `category_tree.csv`
+
+O projeto tambem aceita os CSVs diretamente em `data/`, por compatibilidade com execucoes locais ja existentes. A configuracao padrao usa `data/raw`, mas o codigo faz fallback automatico para `data/` quando os arquivos existem ali.
 
 ## Arquitetura da Pipeline
 
@@ -53,9 +55,26 @@ No Windows PowerShell, ative o ambiente com `.venv\Scripts\Activate.ps1`.
 
 ## Execucao com Docker
 
+O Docker e o caminho recomendado para evitar diferencas de Java, Spark e sistema operacional.
+
 ```bash
 docker compose build
+docker compose run --rm app make check-data
 docker compose run --rm app make benchmark-smoke
+docker compose run --rm app make profile
+docker compose run --rm app make report
+```
+
+Para gerar os Parquets em `data/processed/`, rode:
+
+```bash
+docker compose run --rm app make prepare
+```
+
+Para uma execucao completa, use:
+
+```bash
+docker compose run --rm app make run-all
 ```
 
 ## Comandos Principais
@@ -83,14 +102,28 @@ PYTHONPATH=src python -m retailrocket_recsys.cli --help
 
 O projeto gera comparacoes de modelos, escala por fracao do dataset, particionamento e leitura CSV vs Parquet. O smoke test usa uma fracao reduzida para validar a execucao local.
 
+`make benchmark-smoke` gera metricas, graficos e relatorio em `results/`, mas nao salva os datasets preparados em `data/processed/`. Para preencher `data/processed/`, execute `make prepare`.
+
 ## Resultados Gerados
 
+- `results/metrics/dataset_profile.csv`
 - `results/metrics/model_benchmark.csv`
 - `results/metrics/scale_benchmark.csv`
 - `results/metrics/partition_benchmark.csv`
 - `results/metrics/storage_benchmark.csv`
 - `results/figures/*.png`
+- `results/reports/dataset_profile.md`
 - `results/reports/experiment_summary.md`
+
+## Dados Processados
+
+A pasta `data/processed/` recebe Parquets quando a etapa `prepare` e executada:
+
+- `events_clean.parquet`: eventos limpos com timestamps e pesos.
+- `interactions.parquet`: matriz implicita usuario-produto.
+- `train_interactions.parquet`: interacoes de treino.
+- `test_interactions.parquet`: interacoes de teste.
+- `test_relevant_items.parquet`: itens relevantes por usuario para avaliacao.
 
 ## Como Usar os Resultados no Artigo
 
