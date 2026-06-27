@@ -1,0 +1,5 @@
+# Ignore large raw dataset files.
+data/**/*.csv
+
+# Keep data directory placeholders if they are added later.
+!data/**/.gitkeep
