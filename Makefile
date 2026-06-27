@@ -1,6 +1,6 @@
 .PHONY: install lint test check-data profile prepare train-baselines train-als evaluate benchmark-smoke benchmark-full plot report run-all clean
 
-PYTHONPATH := src
+export PYTHONPATH := src
 
 install:
 	pip install -r requirements.txt

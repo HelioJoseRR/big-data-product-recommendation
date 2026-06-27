@@ -1,0 +1,364 @@
+\documentclass[12pt]{article}
+
+\usepackage{sbc-template}
+\usepackage{graphicx,url}
+\usepackage[utf8]{inputenc}
+\usepackage[T1]{fontenc}
+\usepackage[brazil]{babel}
+\usepackage{booktabs}
+\usepackage{amsmath}
+\usepackage{array}
+
+\graphicspath{{../../results/figures/}{results/figures/}}
+
+\sloppy
+
+\title{Sistema de Recomenda\c{c}\~ao de Produtos Utilizando Apache Spark}
+
+\author{Nome do Autor\inst{1}}
+
+\address{
+  Instituto de Computa\c{c}\~ao -- Universidade Federal de Alagoas (UFAL)\\
+  Macei\'o -- AL -- Brasil
+  \email{email@exemplo.com}
+}
+
+\begin{document}
+
+\maketitle
+
+\begin{abstract}
+This paper presents a local big data pipeline for product recommendation
+experiments using Apache Spark and the RetailRocket e-commerce dataset. The
+pipeline covers data ingestion, cleaning, implicit feedback weighting,
+temporal splitting, recommendation model training, top-$k$ evaluation and
+runtime benchmarking. Three recommendation strategies are compared:
+global popularity, item-item co-occurrence and implicit-feedback ALS. The
+full benchmark shows that the co-occurrence model achieved the best
+Precision@10 and Recall@10 in the evaluated setting, while ALS presented
+lower catalog coverage and higher sensitivity to hyperparameters. The
+results provide empirical evidence about quality, scalability,
+partitioning and storage trade-offs in a reproducible local Spark
+environment.
+\end{abstract}
+
+\begin{resumo}
+Este artigo apresenta uma pipeline local de dados massivos para experimentos
+de recomenda\c{c}\~ao de produtos utilizando Apache Spark e o conjunto de
+dados RetailRocket. A pipeline contempla ingest\~ao, limpeza, pondera\c{c}\~ao
+de feedback impl\'icito, divis\~ao temporal, treinamento de modelos de
+recomenda\c{c}\~ao, avalia\c{c}\~ao top-$k$ e medi\c{c}\~ao de tempo de
+execu\c{c}\~ao. S\~ao comparadas tr\^es estrat\'egias: popularidade global,
+coocorr\^encia item-item e ALS para feedback impl\'icito. O benchmark completo
+indica que o modelo de coocorr\^encia obteve os melhores valores de
+Precision@10 e Recall@10 no ambiente avaliado, enquanto o ALS apresentou
+menor cobertura de cat\'alogo e maior sensibilidade aos hiperpar\^ametros. Os
+resultados oferecem evid\^encias sobre qualidade, escalabilidade,
+particionamento e armazenamento em uma execu\c{c}\~ao Spark local e
+reprodut\'ivel.
+\end{resumo}
+
+\section{Introdu\c{c}\~ao}
+
+Sistemas de recomenda\c{c}\~ao s\~ao componentes centrais em aplica\c{c}\~oes de
+com\'ercio eletr\^onico, pois auxiliam usu\'arios a encontrar produtos em
+cat\'alogos extensos e din\^amicos. Nesses cen\'arios, os sinais dispon\'iveis
+frequentemente s\~ao impl\'icitos, como visualiza\c{c}\~oes, adi\c{c}\~oes ao
+carrinho e compras, em vez de avalia\c{c}\~oes expl\'icitas. Al\'em disso, a
+quantidade de eventos e a alta esparsidade das intera\c{c}\~oes tornam
+necess\'ario o uso de ferramentas adequadas para processamento distribu\'ido ou
+paralelo.
+
+Apache Spark \cite{zaharia2016spark} oferece uma plataforma unificada para
+processamento de dados em larga escala, com suporte a transforma\c{c}\~oes,
+agrega\c{c}\~oes e algoritmos de aprendizado de m\'aquina por meio da MLlib.
+Este trabalho investiga a constru\c{c}\~ao de uma pipeline local e
+reprodut\'ivel para benchmark de recomenda\c{c}\~ao de produtos com Spark,
+utilizando o conjunto RetailRocket \cite{retailrocket2015dataset}.
+
+O objetivo \'e avaliar, em um ambiente local, o comportamento de modelos
+simples e escal\'aveis de recomenda\c{c}\~ao em termos de qualidade de ranking,
+tempo de execu\c{c}\~ao, impacto do particionamento e formato de armazenamento.
+O trabalho privilegia simplicidade e reprodutibilidade, evitando servi\c{c}os
+externos e mantendo todas as etapas principais acess\'iveis por linha de
+comando.
+
+\section{Fundamenta\c{c}\~ao}
+
+\subsection{Feedback impl\'icito}
+
+Em feedback impl\'icito, a prefer\^encia do usu\'ario \'e inferida a partir de
+eventos observados. Neste trabalho, eventos de visualiza\c{c}\~ao,
+adi\c{c}\~ao ao carrinho e compra recebem pesos distintos, respectivamente
+$1$, $3$ e $5$. A intera\c{c}\~ao final entre usu\'ario e produto \'e obtida por
+agrega\c{c}\~ao dos pesos e, por padr\~ao, transformada por $\log(1+x)$ para
+reduzir a influ\^encia de valores extremos.
+
+\subsection{Modelos avaliados}
+
+O modelo de popularidade recomenda os produtos com maior escore agregado no
+conjunto de treino. Apesar de simples, ele \'e uma linha de base importante em
+recomenda\c{c}\~ao, especialmente em cen\'arios de alta esparsidade.
+
+O modelo de coocorr\^encia item-item utiliza os hist\'oricos de usu\'arios para
+estimar associa\c{c}\~oes entre produtos. Produtos vistos em conjunto por muitos
+usu\'arios recebem maior similaridade e s\~ao utilizados para gerar
+recomenda\c{c}\~oes a partir dos itens j\'a observados no treino.
+
+O ALS (\textit{Alternating Least Squares}) para feedback impl\'icito
+\cite{hu2008collaborative} fatora a matriz usu\'ario-item em vetores latentes.
+Neste trabalho foram testadas combina\c{c}\~oes de posto, regulariza\c{c}\~ao e
+par\^ametro de confian\c{c}a definidas na configura\c{c}\~ao da pipeline.
+
+\subsection{M\'etricas}
+
+A avalia\c{c}\~ao utiliza m\'etricas top-$k$ com $k=10$: Precision@10,
+Recall@10, MAP@10, NDCG@10 e cobertura. Precision@10 mede a fra\c{c}\~ao da
+lista recomendada que \'e relevante; Recall@10 mede a fra\c{c}\~ao dos itens
+relevantes recuperada; MAP@10 e NDCG@10 consideram a posi\c{c}\~ao dos acertos
+no ranking; cobertura mede a propor\c{c}\~ao do cat\'alogo que aparece nas
+recomenda\c{c}\~oes.
+
+\section{Metodologia}
+
+\subsection{Dataset}
+
+Foi utilizado o RetailRocket eCommerce Dataset, disponibilizado no Kaggle
+\cite{retailrocket2015dataset}. O arquivo principal de eventos cont\'em
+intera\c{c}\~oes de usu\'arios com produtos, incluindo visualiza\c{c}\~oes,
+adi\c{c}\~oes ao carrinho e transa\c{c}\~oes. A Tabela~\ref{tab:dataset}
+apresenta o perfil ap\'os a etapa de limpeza.
+
+\begin{table}[!htbp]
+\centering
+\caption{Perfil do conjunto de dados ap\'os limpeza.}
+\label{tab:dataset}
+\begin{tabular}{lr}
+\toprule
+Caracter\'istica & Valor \\
+\midrule
+Eventos & 2.755.641 \\
+Usu\'arios distintos & 1.407.580 \\
+Itens distintos & 235.061 \\
+Visualiza\c{c}\~oes & 2.664.218 \\
+Adi\c{c}\~oes ao carrinho & 68.966 \\
+Transa\c{c}\~oes & 22.457 \\
+Per\'iodo & 2015-05-03 a 2015-09-17 \\
+Esparsidade estimada & 0{,}999992 \\
+Eventos por usu\'ario, em m\'edia & 1{,}96 \\
+Eventos por item, em m\'edia & 11{,}72 \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+\subsection{Pipeline experimental}
+
+A pipeline foi implementada em Python com PySpark. Inicialmente, os arquivos
+CSV s\~ao lidos com esquemas expl\'icitos. Em seguida, eventos com campos
+essenciais ausentes s\~ao removidos, eventos inv\'alidos s\~ao filtrados e
+duplicatas s\~ao descartadas. Os timestamps s\~ao convertidos para data e hora,
+e cada evento recebe um peso de feedback impl\'icito.
+
+As intera\c{c}\~oes s\~ao agregadas por par usu\'ario-produto, gerando escore,
+contagem de eventos e data da \'ultima intera\c{c}\~ao. O particionamento de
+treino e teste segue uma estrat\'egia temporal: aproximadamente 80\% dos
+eventos mais antigos s\~ao usados para treino, e os eventos restantes para
+teste. A relev\^ancia no teste prioriza eventos de adi\c{c}\~ao ao carrinho e
+compra; em amostras sem tais eventos, a pipeline usa visualiza\c{c}\~oes como
+fallback.
+
+\subsection{Ambiente de execu\c{c}\~ao}
+
+Os experimentos foram executados em modo local com Spark \texttt{local[*]}.
+O ambiente utilizado possui processador Intel Core i5-12450HX, 12 threads
+dispon\'iveis, 7{,}6 GiB de mem\'oria RAM, OpenJDK 17 e PySpark 4.1.2. A
+configura\c{c}\~ao da aplica\c{c}\~ao definiu 4 GiB de mem\'oria para o driver e
+parti\c{c}\~oes de shuffle adaptativas.
+
+\section{Resultados}
+
+\subsection{Compara\c{c}\~ao de modelos}
+
+A Tabela~\ref{tab:modelos} apresenta um resumo por fam\'ilia de modelo no
+benchmark completo, combinando as melhores m\'etricas observadas com o tempo
+m\'edio das execu\c{c}\~oes daquela fam\'ilia. O modelo de coocorr\^encia obteve a
+melhor qualidade em todas as m\'etricas principais e tamb\'em a maior cobertura
+de cat\'alogo. Os modelos ALS apresentaram desempenho superior ao baseline de
+popularidade em algumas configura\c{c}\~oes, mas com cobertura baixa em rela\c{c}\~ao
+ao cat\'alogo total.
+
+\begin{table}[!htbp]
+\centering
+\caption{Melhores resultados por fam\'ilia de modelo no benchmark completo.}
+\label{tab:modelos}
+\begin{tabular}{lrrrrrr}
+\toprule
+Modelo & Prec@10 & Rec@10 & MAP@10 & NDCG@10 & Cob. & Tempo m\'edio (s) \\
+\midrule
+Coocorr\^encia & 0{,}012891 & 0{,}054153 & 0{,}022496 & 0{,}034383 & 0{,}700708 & 35{,}56 \\
+ALS rank 16 & 0{,}004687 & 0{,}019536 & 0{,}005948 & 0{,}011882 & 0{,}004671 & 11{,}56 \\
+ALS rank 8 & 0{,}004175 & 0{,}011999 & 0{,}005199 & 0{,}008014 & 0{,}002712 & 7{,}94 \\
+Popularidade & 0{,}002584 & 0{,}010390 & 0{,}003267 & 0{,}006179 & 0{,}000409 & 10{,}18 \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+A Figura~\ref{fig:precision-recall} resume a compara\c{c}\~ao entre
+Precision@10 e Recall@10 por modelo e configura\c{c}\~ao, enquanto a
+Figura~\ref{fig:coverage} apresenta a cobertura.
+
+\begin{figure}[!htbp]
+\centering
+\includegraphics[width=.9\textwidth]{precision_recall_by_model.png}
+\caption{Precision@10 e Recall@10 por modelo avaliado.}
+\label{fig:precision-recall}
+\end{figure}
+
+\begin{figure}[!htbp]
+\centering
+\includegraphics[width=.78\textwidth]{coverage_by_model.png}
+\caption{Cobertura de cat\'alogo por modelo avaliado.}
+\label{fig:coverage}
+\end{figure}
+\clearpage
+
+\subsection{Escalabilidade por fra\c{c}\~ao do dataset}
+
+O benchmark de escala foi executado com fra\c{c}\~oes de 25\%, 50\%, 75\% e
+100\% dos usu\'arios, usando amostragem determin\'istica por identificador de
+usu\'ario. A Tabela~\ref{tab:escala} apresenta os tempos totais registrados
+para cada fra\c{c}\~ao. Esses tempos representam a execu\c{c}\~ao do conjunto de
+modelos avaliado em cada fra\c{c}\~ao. Assim, a interpreta\c{c}\~ao desta tabela se
+concentra no volume processado e no custo temporal; a compara\c{c}\~ao de
+qualidade entre modelos \'e apresentada na Tabela~\ref{tab:modelos}. A
+Figura~\ref{fig:runtime-fraction} mostra a varia\c{c}\~ao do tempo total ao
+aumentar a fra\c{c}\~ao processada.
+
+\begin{table}[!htbp]
+\centering
+\caption{Benchmark por fra\c{c}\~ao do dataset.}
+\label{tab:escala}
+\begin{tabular}{rrrrr}
+\toprule
+Fra\c{c}\~ao & Eventos de entrada & Usu\'arios & Itens & Tempo total (s) \\
+\midrule
+0{,}25 & 677.301 & 352.154 & 134.181 & 106{,}03 \\
+0{,}50 & 1.370.805 & 704.673 & 181.066 & 139{,}92 \\
+0{,}75 & 2.061.925 & 1.055.538 & 212.192 & 118{,}20 \\
+1{,}00 & 2.755.641 & 1.407.580 & 235.061 & 193{,}55 \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+\begin{figure}[!htbp]
+\centering
+\includegraphics[width=.78\textwidth]{runtime_by_fraction.png}
+\caption{Tempo total por fra\c{c}\~ao do dataset.}
+\label{fig:runtime-fraction}
+\end{figure}
+\clearpage
+
+\subsection{Particionamento}
+
+A Tabela~\ref{tab:particionamento} mostra o tempo total observado para 2, 4, 8
+e 16 parti\c{c}\~oes na fra\c{c}\~ao de 25\% do dataset, usando o modelo de
+popularidade como refer\^encia. O melhor tempo local foi obtido com 8
+parti\c{c}\~oes, embora 4 parti\c{c}\~oes tenha apresentado valor pr\'oximo. A
+Figura~\ref{fig:runtime-partitions} evidencia que o aumento de parti\c{c}\~oes
+nem sempre reduz o tempo total em execu\c{c}\~ao local.
+
+\begin{table}[!htbp]
+\centering
+\caption{Benchmark de particionamento com 25\% do dataset.}
+\label{tab:particionamento}
+\begin{tabular}{rrrrr}
+\toprule
+Parti\c{c}\~oes & Tempo total (s) & Prec@10 & Rec@10 & MAP@10 \\
+\midrule
+2 & 14{,}66 & 0{,}001709 & 0{,}009402 & 0{,}002422 \\
+4 & 12{,}34 & 0{,}001724 & 0{,}009483 & 0{,}002443 \\
+8 & 12{,}13 & 0{,}001724 & 0{,}009483 & 0{,}002443 \\
+16 & 14{,}97 & 0{,}001709 & 0{,}009402 & 0{,}002422 \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+\begin{figure}[!htbp]
+\centering
+\includegraphics[width=.78\textwidth]{runtime_by_partitions.png}
+\caption{Tempo total por n\'umero de parti\c{c}\~oes.}
+\label{fig:runtime-partitions}
+\end{figure}
+\clearpage
+
+\subsection{CSV e Parquet}
+
+O benchmark de armazenamento comparou leitura e contagem do CSV original com
+uma vers\~ao Parquet derivada dos eventos limpos. O Parquet reduziu o tamanho
+em disco de 89{,}87 MiB para 57{,}34 MiB. Nesta execu\c{c}\~ao local, por\'em, o
+tempo de leitura e contagem foi ligeiramente menor para o CSV: 0{,}53 s contra
+0{,}60 s no Parquet. Esse resultado sugere que, para uma opera\c{c}\~ao simples
+de contagem em ambiente local, o ganho de armazenamento n\~ao necessariamente
+se traduz em menor lat\^encia; em consultas seletivas e pipelines repetidas, o
+formato colunar tende a ser mais vantajoso.
+A Figura~\ref{fig:storage} sintetiza a compara\c{c}\~ao de tempo entre os dois
+formatos.
+
+\begin{figure}[!htbp]
+\centering
+\includegraphics[width=.75\textwidth]{storage_csv_vs_parquet.png}
+\caption{Tempo de leitura e contagem para CSV e Parquet.}
+\label{fig:storage}
+\end{figure}
+\clearpage
+
+\section{Discuss\~ao}
+
+Os resultados indicam que, para o conjunto de dados e a metodologia adotados,
+a coocorr\^encia item-item foi a alternativa mais competitiva. Uma hip\'otese
+para esse comportamento \'e que o dataset apresenta intera\c{c}\~oes muito
+esparsas, com m\'edia inferior a dois eventos por usu\'ario. Nesse cen\'ario,
+modelos latentes como ALS podem ter dificuldade para aprender representa\c{c}\~oes
+est\'aveis para muitos usu\'arios e itens, enquanto regras de coocorr\^encia
+capturam associa\c{c}\~oes locais de maneira direta.
+
+A baixa cobertura dos modelos ALS tamb\'em merece aten\c{c}\~ao. Como as
+recomenda\c{c}\~oes foram geradas apenas para usu\'arios avali\'aveis e itens
+vistos no treino foram removidos, a lista final pode ficar concentrada em uma
+fra\c{c}\~ao pequena do cat\'alogo. J\'a a coocorr\^encia apresentou cobertura
+superior a 65\% nas melhores execu\c{c}\~oes, o que sugere maior diversidade de
+itens recomendados.
+
+Os tempos observados devem ser interpretados como evid\^encias de execu\c{c}\~ao
+local, n\~ao como medi\c{c}\~oes de cluster. A execu\c{c}\~ao em uma \'unica m\'aquina
+sofre influ\^encia de cache, escalonamento local, parti\c{c}\~oes e custo de
+a\c{c}\~oes Spark acionadas durante a avalia\c{c}\~ao.
+
+\section{Amea\c{c}as \`a Validade}
+
+Este estudo utiliza avalia\c{c}\~ao offline e, portanto, n\~ao mede impacto real
+em convers\~ao, receita ou satisfa\c{c}\~ao do usu\'ario. O dataset \'e anonimizado
+e n\~ao possui sess\~oes expl\'icitas, o que limita a modelagem sequencial. Al\'em
+disso, o ambiente local n\~ao representa um cluster Spark de produ\c{c}\~ao. Por
+fim, a grade de hiperpar\^ametros do ALS foi pequena, privilegiando custo
+computacional controlado em vez de busca extensiva.
+
+\section{Conclus\~ao}
+
+Este artigo apresentou uma pipeline local e reprodut\'ivel para benchmark de
+recomenda\c{c}\~ao de produtos com Apache Spark. A partir do dataset RetailRocket,
+foram implementadas etapas de limpeza, pondera\c{c}\~ao de eventos,
+agrega\c{c}\~ao, split temporal, treino, avalia\c{c}\~ao top-$k$ e an\'alise de
+desempenho. Nos experimentos realizados, a coocorr\^encia item-item apresentou
+o melhor desempenho de qualidade e a maior cobertura, superando popularidade
+e ALS nas configura\c{c}\~oes avaliadas.
+
+Como trabalhos futuros, prop\~oe-se ampliar a busca de hiperpar\^ametros,
+avaliar modelos sequenciais, incorporar atributos de produto, executar os
+experimentos em cluster Spark e realizar an\'alises estat\'isticas com m\'ultiplas
+rodadas para reduzir a influ\^encia de variabilidade local.
+
+\bibliographystyle{sbc}
+\bibliography{referencias}
+
+\end{document}
