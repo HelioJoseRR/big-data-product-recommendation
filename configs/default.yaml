@@ -1,0 +1,64 @@
+app:
+  name: retailrocket-spark-recommender
+  random_seed: 42
+
+paths:
+  raw_dir: data
+  interim_dir: data/interim
+  processed_dir: data/processed
+  results_dir: results
+
+spark:
+  master: local[*]
+  app_name: RetailRocketSparkRecommender
+  driver_memory: 4g
+  shuffle_partitions: 8
+  adaptive_enabled: true
+  local_dir: data/interim/spark-local
+
+dataset:
+  events_file: events.csv
+  item_properties_files:
+    - item_properties_part1.csv
+    - item_properties_part2.csv
+  category_tree_file: category_tree.csv
+
+features:
+  event_weights:
+    view: 1.0
+    addtocart: 3.0
+    transaction: 5.0
+  use_log_score: true
+  min_user_interactions: 2
+  min_item_interactions: 2
+
+split:
+  strategy: temporal
+  train_ratio: 0.8
+  relevant_events:
+    - addtocart
+    - transaction
+  fallback_relevant_events:
+    - view
+    - addtocart
+    - transaction
+
+recommendation:
+  k: 10
+  exclude_seen: true
+  max_items_per_user_for_pairs: 100
+  top_similar_items_per_item: 50
+
+als:
+  implicit_prefs: true
+  nonnegative: true
+  cold_start_strategy: drop
+  max_iter: 5
+  ranks: [8, 16]
+  reg_params: [0.05, 0.1]
+  alphas: [10.0, 20.0]
+
+benchmark:
+  fractions: [0.25, 0.5, 0.75, 1.0]
+  partitions: [2, 4, 8, 16]
+  formats: ["csv", "parquet"]
