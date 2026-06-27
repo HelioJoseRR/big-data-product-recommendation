@@ -1,10 +1,21 @@
 .venv/
+.env
+.env.*
 .docker-tmp/
 __pycache__/
 *.pyc
+*.pyo
+*.pyd
 .pytest_cache/
 .ruff_cache/
+.mypy_cache/
+.coverage
+htmlcov/
+.tox/
 .ipynb_checkpoints/
+build/
+dist/
+*.egg-info/
 
 data/*.csv
 data/raw/*.csv
@@ -23,7 +34,10 @@ results/.matplotlib/
 !results/figures/.gitkeep
 !results/reports/.gitkeep
 
+metastore_db/
+spark-warehouse/
+derby.log
+
 *.log
 .DS_Store
-.env
 kaggle.json
