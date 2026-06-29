@@ -11,14 +11,18 @@ paths:
 spark:
   master: spark://spark-master:7077
   app_name: RetailRocketSparkRecommenderCodespaces
-  driver_memory: 3g
-  shuffle_partitions: 16
+  driver_memory: 2g
+  shuffle_partitions: 64
   adaptive_enabled: true
   local_dir: /tmp/spark-local
   extra_conf:
     spark.driver.host: app
     spark.driver.bindAddress: 0.0.0.0
+    spark.executor.memory: 2g
+    spark.executor.cores: 1
+    spark.cores.max: 2
     spark.ui.port: 4040
+    spark.sql.autoBroadcastJoinThreshold: -1
     spark.eventLog.enabled: true
     spark.eventLog.dir: file:/app/data/interim/spark-events
     spark.history.fs.logDirectory: file:/app/data/interim/spark-events

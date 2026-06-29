@@ -10,8 +10,9 @@ separados dentro do Codespace:
 - `spark-history`: Spark History Server na porta `18080`.
 - `app`: container que executa a CLI do projeto e expõe a Spark Application UI na porta `4040`.
 
-Observacao: a cota gratuita do Codespaces e limitada. Rode primeiro o smoke
-benchmark; execute o full benchmark apenas se houver tempo de cota suficiente.
+Observacao: a cota gratuita do Codespaces e limitada. Rode primeiro o benchmark
+reduzido com 25% da base; execute o full benchmark apenas se houver tempo de
+cota e memoria suficientes.
 
 ## 1. Publicar ou abrir o repositorio no GitHub
 
@@ -44,14 +45,16 @@ docker compose -f docker-compose.cluster.yml run --rm app \
 Confira:
 
 ```bash
-docker compose -f docker-compose.cluster.yml run --rm app make check-data
+docker compose -f docker-compose.cluster.yml run --rm app \
+  python -m retailrocket_recsys.cli check-data \
+  --config-path configs/codespaces-cluster.yaml
 ```
 
 ## 4. Subir o cluster Spark
 
 ```bash
 mkdir -p data/interim/spark-events
-docker compose -f docker-compose.cluster.yml up -d spark-master spark-worker-1 spark-worker-2 spark-history
+docker compose -f docker-compose.cluster.yml up -d spark-master spark-worker-1 spark-worker-2 spark-history app
 ```
 
 Veja se os workers registraram no master:
@@ -68,17 +71,21 @@ No Codespaces, abra a aba **Ports** e torne visiveis estas portas:
 - `18080`: Spark History Server.
 - `4040`: Spark Application UI durante uma execucao ativa.
 
-## 5. Rodar primeiro o benchmark smoke
+## 5. Rodar primeiro o benchmark reduzido
 
 ```bash
-docker compose -f docker-compose.cluster.yml run --rm --service-ports app \
+docker compose -f docker-compose.cluster.yml exec -T app \
   python -m retailrocket_recsys.cli benchmark \
   --config-path configs/codespaces-cluster.yaml \
   --fractions 0.25 \
   --partitions 4 \
-  --models popularity,als \
+  --models popularity,cooccurrence,als \
   --smoke
 ```
+
+Esse comando usa 25% dos usuarios, 4 particoes e apenas a primeira combinacao
+de hiperparametros do ALS. Em um perfil gratuito ele ainda mede um cluster
+Spark standalone real, mas evita que a execucao fique longa demais.
 
 Durante a execucao, acompanhe:
 
@@ -88,10 +95,12 @@ Durante a execucao, acompanhe:
 
 ## 6. Rodar o benchmark completo
 
-Use apenas se o smoke finalizou e a cota do Codespaces permitir.
+Use apenas se o benchmark reduzido finalizou e a cota do Codespaces permitir.
+Em perfis pequenos, o benchmark completo pode encerrar por limite de memoria ou
+por reinicio do ambiente antes de escrever todos os CSVs.
 
 ```bash
-docker compose -f docker-compose.cluster.yml run --rm --service-ports app \
+docker compose -f docker-compose.cluster.yml exec -T app \
   python -m retailrocket_recsys.cli benchmark \
   --config-path configs/codespaces-cluster.yaml
 ```
@@ -106,15 +115,15 @@ O benchmark completo avalia:
 ## 7. Gerar perfil, dados processados e relatorio
 
 ```bash
-docker compose -f docker-compose.cluster.yml run --rm app \
+docker compose -f docker-compose.cluster.yml exec -T app \
   python -m retailrocket_recsys.cli profile \
   --config-path configs/codespaces-cluster.yaml
 
-docker compose -f docker-compose.cluster.yml run --rm app \
+docker compose -f docker-compose.cluster.yml exec -T app \
   python -m retailrocket_recsys.cli prepare \
   --config-path configs/codespaces-cluster.yaml
 
-docker compose -f docker-compose.cluster.yml run --rm app \
+docker compose -f docker-compose.cluster.yml exec -T app \
   python -m retailrocket_recsys.cli report \
   --config-path configs/codespaces-cluster.yaml
 ```
@@ -127,7 +136,10 @@ Registre no artigo:
 - Cores por worker: `2`.
 - Memoria por worker: `3g`.
 - Master URL: `spark://spark-master:7077`.
-- `spark.sql.shuffle.partitions`: `16`.
+- Memoria do driver: `2g`.
+- Memoria dos executores: `2g`.
+- Cores por executor: `1`.
+- `spark.sql.shuffle.partitions`: `64`.
 - Tempo total da aplicacao.
 - Tempo por job/stage.
 - Numero de tasks.
@@ -142,6 +154,15 @@ As metricas ficam nas abas:
 - Spark Application UI `4040`: `Jobs`, `Stages`, `SQL`, `Executors`.
 - Spark History Server `18080`: execucoes encerradas.
 - Spark Master UI `8080`: workers vivos, cores e memoria.
+
+Tambem e possivel consultar o History Server por REST:
+
+```bash
+curl http://localhost:18080/api/v1/applications
+curl http://localhost:18080/api/v1/applications/<app-id>/executors
+curl "http://localhost:18080/api/v1/applications/<app-id>/jobs?status=SUCCEEDED"
+curl "http://localhost:18080/api/v1/applications/<app-id>/stages?status=complete"
+```
 
 ## 9. Salvar resultados
 

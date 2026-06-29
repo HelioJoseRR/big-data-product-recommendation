@@ -75,14 +75,15 @@ services:
   app:
     build: .
     working_dir: /app
-    command: python -m retailrocket_recsys.cli --help
+    hostname: app
+    command: sleep infinity
     depends_on:
       - spark-master
       - spark-worker-1
       - spark-worker-2
     environment:
       PYTHONPATH: /app/src
-      SPARK_LOCAL_IP: app
+      SPARK_LOCAL_HOSTNAME: app
     ports:
       - "4040:4040"
     volumes:

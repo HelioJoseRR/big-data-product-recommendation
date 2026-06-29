@@ -28,34 +28,34 @@
 \maketitle
 
 \begin{abstract}
-This paper presents a local big data pipeline for product recommendation
-experiments using Apache Spark and the RetailRocket e-commerce dataset. The
-pipeline covers data ingestion, cleaning, implicit feedback weighting,
-temporal splitting, recommendation model training, top-$k$ evaluation and
-runtime benchmarking. Three recommendation strategies are compared:
-global popularity, item-item co-occurrence and implicit-feedback ALS. The
-full benchmark shows that the co-occurrence model achieved the best
-Precision@10 and Recall@10 in the evaluated setting, while ALS presented
-lower catalog coverage and higher sensitivity to hyperparameters. The
-results provide empirical evidence about quality, scalability,
-partitioning and storage trade-offs in a reproducible local Spark
-environment.
+This paper presents a reproducible big data pipeline for product
+recommendation experiments using Apache Spark and the RetailRocket
+e-commerce dataset. The pipeline covers data ingestion, cleaning, implicit
+feedback weighting, temporal splitting, recommendation model training,
+top-$k$ evaluation and runtime benchmarking. Three recommendation strategies
+are compared: global popularity, item-item co-occurrence and
+implicit-feedback ALS. The full local benchmark shows that the co-occurrence
+model achieved the best Precision@10 and Recall@10 in the evaluated setting,
+while ALS presented lower catalog coverage and higher sensitivity to
+hyperparameters. The paper also reports a free online reproduction using a
+Spark standalone cluster in GitHub Codespaces, including executor, task,
+shuffle and runtime measurements.
 \end{abstract}
 
 \begin{resumo}
-Este artigo apresenta uma pipeline local de dados massivos para experimentos
-de recomenda\c{c}\~ao de produtos utilizando Apache Spark e o conjunto de
-dados RetailRocket. A pipeline contempla ingest\~ao, limpeza, pondera\c{c}\~ao
-de feedback impl\'icito, divis\~ao temporal, treinamento de modelos de
-recomenda\c{c}\~ao, avalia\c{c}\~ao top-$k$ e medi\c{c}\~ao de tempo de
+Este artigo apresenta uma pipeline reprodut\'ivel de dados massivos para
+experimentos de recomenda\c{c}\~ao de produtos utilizando Apache Spark e o
+conjunto de dados RetailRocket. A pipeline contempla ingest\~ao, limpeza,
+pondera\c{c}\~ao de feedback impl\'icito, divis\~ao temporal, treinamento de
+modelos de recomenda\c{c}\~ao, avalia\c{c}\~ao top-$k$ e medi\c{c}\~ao de tempo de
 execu\c{c}\~ao. S\~ao comparadas tr\^es estrat\'egias: popularidade global,
 coocorr\^encia item-item e ALS para feedback impl\'icito. O benchmark completo
-indica que o modelo de coocorr\^encia obteve os melhores valores de
+local indica que o modelo de coocorr\^encia obteve os melhores valores de
 Precision@10 e Recall@10 no ambiente avaliado, enquanto o ALS apresentou
-menor cobertura de cat\'alogo e maior sensibilidade aos hiperpar\^ametros. Os
-resultados oferecem evid\^encias sobre qualidade, escalabilidade,
-particionamento e armazenamento em uma execu\c{c}\~ao Spark local e
-reprodut\'ivel.
+menor cobertura de cat\'alogo e maior sensibilidade aos hiperpar\^ametros. O
+artigo tamb\'em relata uma reprodu\c{c}\~ao online gratuita em um cluster Spark
+standalone no GitHub Codespaces, com medi\c{c}\~oes de executores, tarefas,
+shuffle e tempo de aplica\c{c}\~ao.
 \end{resumo}
 
 \section{Introdu\c{c}\~ao}
@@ -72,16 +72,17 @@ paralelo.
 Apache Spark \cite{zaharia2016spark} oferece uma plataforma unificada para
 processamento de dados em larga escala, com suporte a transforma\c{c}\~oes,
 agrega\c{c}\~oes e algoritmos de aprendizado de m\'aquina por meio da MLlib.
-Este trabalho investiga a constru\c{c}\~ao de uma pipeline local e
-reprodut\'ivel para benchmark de recomenda\c{c}\~ao de produtos com Spark,
-utilizando o conjunto RetailRocket \cite{retailrocket2015dataset}.
+Este trabalho investiga a constru\c{c}\~ao de uma pipeline reprodut\'ivel para
+benchmark de recomenda\c{c}\~ao de produtos com Spark, utilizando o conjunto
+RetailRocket \cite{retailrocket2015dataset}.
 
-O objetivo \'e avaliar, em um ambiente local, o comportamento de modelos
-simples e escal\'aveis de recomenda\c{c}\~ao em termos de qualidade de ranking,
-tempo de execu\c{c}\~ao, impacto do particionamento e formato de armazenamento.
-O trabalho privilegia simplicidade e reprodutibilidade, evitando servi\c{c}os
-externos e mantendo todas as etapas principais acess\'iveis por linha de
-comando.
+O objetivo \'e avaliar o comportamento de modelos simples e escal\'aveis de
+recomenda\c{c}\~ao em termos de qualidade de ranking, tempo de execu\c{c}\~ao,
+impacto do particionamento e formato de armazenamento. Al\'em do benchmark
+local completo, o trabalho descreve uma reprodu\c{c}\~ao online gratuita com
+Spark standalone em containers, permitindo coletar m\'etricas de master,
+workers, executores, tarefas e shuffle. Todas as etapas principais permanecem
+acess\'iveis por linha de comando.
 
 \section{Fundamenta\c{c}\~ao}
 
@@ -169,11 +170,25 @@ fallback.
 
 \subsection{Ambiente de execu\c{c}\~ao}
 
-Os experimentos foram executados em modo local com Spark \texttt{local[*]}.
-O ambiente utilizado possui processador Intel Core i5-12450HX, 12 threads
-dispon\'iveis, 7{,}6 GiB de mem\'oria RAM, OpenJDK 17 e PySpark 4.1.2. A
-configura\c{c}\~ao da aplica\c{c}\~ao definiu 4 GiB de mem\'oria para o driver e
-parti\c{c}\~oes de shuffle adaptativas.
+Os resultados principais foram obtidos em modo local com Spark
+\texttt{local[*]}. O ambiente utilizado possui processador Intel Core
+i5-12450HX, 12 threads dispon\'iveis, 7{,}6 GiB de mem\'oria RAM, OpenJDK 17 e
+PySpark 4.1.2. A configura\c{c}\~ao local definiu 4 GiB de mem\'oria para o
+driver e parti\c{c}\~oes de shuffle adaptativas.
+
+\subsection{Reprodu\c{c}\~ao online em cluster}
+
+Para permitir reprodu\c{c}\~ao online sem custo adicional, foi criado um perfil
+GitHub Codespaces com Docker Compose e Spark standalone. Esse perfil possui
+um container para o master, dois containers workers, um History Server e um
+container de aplica\c{c}\~ao. Cada worker foi configurado com 2 cores e 3 GiB de
+mem\'oria. A aplica\c{c}\~ao utiliza \texttt{spark://spark-master:7077}, driver
+com 2 GiB, executores com 2 GiB, um core por executor,
+\texttt{spark.cores.max=2}, \texttt{spark.sql.shuffle.partitions=64} e event
+log persistido em \texttt{data/interim/spark-events}. Como todos os containers
+executam na mesma m\'aquina virtual do Codespace, essa configura\c{c}\~ao mede
+um cluster Spark standalone real, mas n\~ao substitui um cluster distribu\'ido
+em m\'ultiplas m\'aquinas f\'isicas.
 
 \section{Resultados}
 
@@ -195,10 +210,10 @@ ao cat\'alogo total.
 \toprule
 Modelo & Prec@10 & Rec@10 & MAP@10 & NDCG@10 & Cob. & Tempo m\'edio (s) \\
 \midrule
-Coocorr\^encia & 0{,}012891 & 0{,}054153 & 0{,}022496 & 0{,}034383 & 0{,}700708 & 35{,}56 \\
-ALS rank 16 & 0{,}004687 & 0{,}019536 & 0{,}005948 & 0{,}011882 & 0{,}004671 & 11{,}56 \\
-ALS rank 8 & 0{,}004175 & 0{,}011999 & 0{,}005199 & 0{,}008014 & 0{,}002712 & 7{,}94 \\
-Popularidade & 0{,}002584 & 0{,}010390 & 0{,}003267 & 0{,}006179 & 0{,}000409 & 10{,}18 \\
+Coocorr\^encia & 0{,}012891 & 0{,}054153 & 0{,}022496 & 0{,}034383 & 0{,}700708 & 34{,}20 \\
+ALS rank 16 & 0{,}004687 & 0{,}019536 & 0{,}005948 & 0{,}011882 & 0{,}004671 & 9{,}24 \\
+ALS rank 8 & 0{,}004175 & 0{,}011999 & 0{,}005199 & 0{,}008014 & 0{,}002712 & 7{,}85 \\
+Popularidade & 0{,}002584 & 0{,}010390 & 0{,}003267 & 0{,}006179 & 0{,}000409 & 10{,}46 \\
 \bottomrule
 \end{tabular}
 \end{table}
@@ -242,10 +257,10 @@ aumentar a fra\c{c}\~ao processada.
 \toprule
 Fra\c{c}\~ao & Eventos de entrada & Usu\'arios & Itens & Tempo total (s) \\
 \midrule
-0{,}25 & 677.301 & 352.154 & 134.181 & 106{,}03 \\
-0{,}50 & 1.370.805 & 704.673 & 181.066 & 139{,}92 \\
-0{,}75 & 2.061.925 & 1.055.538 & 212.192 & 118{,}20 \\
-1{,}00 & 2.755.641 & 1.407.580 & 235.061 & 193{,}55 \\
+0{,}25 & 677.301 & 352.154 & 134.181 & 90{,}95 \\
+0{,}50 & 1.370.805 & 704.673 & 181.066 & 86{,}36 \\
+0{,}75 & 2.061.925 & 1.055.538 & 212.192 & 122{,}42 \\
+1{,}00 & 2.755.641 & 1.407.580 & 235.061 & 214{,}13 \\
 \bottomrule
 \end{tabular}
 \end{table}
@@ -275,10 +290,10 @@ nem sempre reduz o tempo total em execu\c{c}\~ao local.
 \toprule
 Parti\c{c}\~oes & Tempo total (s) & Prec@10 & Rec@10 & MAP@10 \\
 \midrule
-2 & 14{,}66 & 0{,}001709 & 0{,}009402 & 0{,}002422 \\
-4 & 12{,}34 & 0{,}001724 & 0{,}009483 & 0{,}002443 \\
+2 & 18{,}55 & 0{,}001709 & 0{,}009402 & 0{,}002422 \\
+4 & 14{,}74 & 0{,}001724 & 0{,}009483 & 0{,}002443 \\
 8 & 12{,}13 & 0{,}001724 & 0{,}009483 & 0{,}002443 \\
-16 & 14{,}97 & 0{,}001709 & 0{,}009402 & 0{,}002422 \\
+16 & 13{,}41 & 0{,}001709 & 0{,}009402 & 0{,}002422 \\
 \bottomrule
 \end{tabular}
 \end{table}
@@ -295,12 +310,11 @@ Parti\c{c}\~oes & Tempo total (s) & Prec@10 & Rec@10 & MAP@10 \\
 
 O benchmark de armazenamento comparou leitura e contagem do CSV original com
 uma vers\~ao Parquet derivada dos eventos limpos. O Parquet reduziu o tamanho
-em disco de 89{,}87 MiB para 57{,}34 MiB. Nesta execu\c{c}\~ao local, por\'em, o
-tempo de leitura e contagem foi ligeiramente menor para o CSV: 0{,}53 s contra
-0{,}60 s no Parquet. Esse resultado sugere que, para uma opera\c{c}\~ao simples
-de contagem em ambiente local, o ganho de armazenamento n\~ao necessariamente
-se traduz em menor lat\^encia; em consultas seletivas e pipelines repetidas, o
-formato colunar tende a ser mais vantajoso.
+em disco de 89{,}87 MiB para 57{,}34 MiB. Nesta execu\c{c}\~ao local, o tempo de
+leitura e contagem tamb\'em foi menor para o Parquet: 0{,}64 s contra 2{,}42 s
+no CSV. Esse resultado sugere que o formato colunar pode reduzir tanto o uso
+de disco quanto a lat\^encia de leitura em etapas repetidas da pipeline, mesmo
+quando a opera\c{c}\~ao avaliada \'e apenas uma contagem.
 A Figura~\ref{fig:storage} sintetiza a compara\c{c}\~ao de tempo entre os dois
 formatos.
 
@@ -310,6 +324,63 @@ formatos.
 \caption{Tempo de leitura e contagem para CSV e Parquet.}
 \label{fig:storage}
 \end{figure}
+\clearpage
+
+\subsection{Reprodu\c{c}\~ao online gratuita}
+
+A reprodu\c{c}\~ao online foi executada no perfil Spark standalone em
+containers, usando 25\% dos usu\'arios, 4 parti\c{c}\~oes e a primeira
+configura\c{c}\~ao do ALS. A aplica\c{c}\~ao Spark
+\texttt{app-20260629000857-0000} iniciou em 2026-06-29 00:08:56 UTC e
+encerrou em 2026-06-29 00:12:10 UTC, com dura\c{c}\~ao de 194{,}08 s no
+History Server. A Tabela~\ref{tab:cluster-modelos} mostra os resultados dos
+modelos nessa reprodu\c{c}\~ao.
+
+\begin{table}[!htbp]
+\centering
+\caption{Resultados da reprodu\c{c}\~ao online em cluster com 25\% do dataset.}
+\label{tab:cluster-modelos}
+\begin{tabular}{lrrrrrr}
+\toprule
+Modelo & Prec@10 & Rec@10 & MAP@10 & NDCG@10 & Cob. & Tempo (s) \\
+\midrule
+Popularidade & 0{,}001709 & 0{,}009402 & 0{,}002422 & 0{,}004622 & 0{,}000410 & 18{,}98 \\
+Coocorr\^encia & 0{,}006034 & 0{,}028736 & 0{,}017670 & 0{,}023696 & 0{,}700806 & 23{,}64 \\
+ALS rank 8 & 0{,}000855 & 0{,}008547 & 0{,}001068 & 0{,}002696 & 0{,}002328 & 49{,}53 \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+A Tabela~\ref{tab:cluster-spark} resume as m\'etricas de execu\c{c}\~ao
+coletadas pelo Spark History Server. A aplica\c{c}\~ao concluiu 143 jobs e 156
+stages, sem tarefas falhas. Os dois executores processaram 5.329 tarefas, com
+3{,}06 GiB de entrada, 453{,}42 MiB de shuffle lido e 427{,}58 MiB de shuffle
+escrito.
+
+\begin{table}[!htbp]
+\centering
+\caption{M\'etricas Spark da reprodu\c{c}\~ao online em cluster.}
+\label{tab:cluster-spark}
+\begin{tabular}{lr}
+\toprule
+M\'etrica & Valor \\
+\midrule
+Workers & 2 \\
+Executores de worker & 2 \\
+Cores por executor & 1 \\
+Jobs conclu\'idos & 143 \\
+Stages conclu\'idos & 156 \\
+Tarefas conclu\'idas & 5.329 \\
+Tarefas falhas & 0 \\
+Tempo de aplica\c{c}\~ao & 194{,}08 s \\
+Tempo agregado dos executores & 324{,}25 s \\
+Tempo de GC da JVM & 3{,}61 s \\
+Entrada processada & 3{,}06 GiB \\
+Shuffle lido & 453{,}42 MiB \\
+Shuffle escrito & 427{,}58 MiB \\
+\bottomrule
+\end{tabular}
+\end{table}
 \clearpage
 
 \section{Discuss\~ao}
@@ -329,34 +400,44 @@ fra\c{c}\~ao pequena do cat\'alogo. J\'a a coocorr\^encia apresentou cobertura
 superior a 65\% nas melhores execu\c{c}\~oes, o que sugere maior diversidade de
 itens recomendados.
 
-Os tempos observados devem ser interpretados como evid\^encias de execu\c{c}\~ao
-local, n\~ao como medi\c{c}\~oes de cluster. A execu\c{c}\~ao em uma \'unica m\'aquina
-sofre influ\^encia de cache, escalonamento local, parti\c{c}\~oes e custo de
-a\c{c}\~oes Spark acionadas durante a avalia\c{c}\~ao.
+Os tempos do benchmark completo devem ser interpretados como evid\^encias de
+execu\c{c}\~ao local. A execu\c{c}\~ao em uma \'unica m\'aquina sofre influ\^encia de
+cache, escalonamento local, parti\c{c}\~oes e custo de a\c{c}\~oes Spark acionadas
+durante a avalia\c{c}\~ao. A reprodu\c{c}\~ao online complementa essa an\'alise ao
+fornecer m\'etricas de cluster, como executores, tarefas, shuffle e tempo de
+GC. No entanto, por utilizar containers dentro de uma mesma m\'aquina virtual,
+ela deve ser vista como uma reprodu\c{c}\~ao gratuita e instrumentada, n\~ao como
+evid\^encia de escalabilidade em um cluster multi-n\'o.
 
 \section{Amea\c{c}as \`a Validade}
 
 Este estudo utiliza avalia\c{c}\~ao offline e, portanto, n\~ao mede impacto real
 em convers\~ao, receita ou satisfa\c{c}\~ao do usu\'ario. O dataset \'e anonimizado
 e n\~ao possui sess\~oes expl\'icitas, o que limita a modelagem sequencial. Al\'em
-disso, o ambiente local n\~ao representa um cluster Spark de produ\c{c}\~ao. Por
-fim, a grade de hiperpar\^ametros do ALS foi pequena, privilegiando custo
-computacional controlado em vez de busca extensiva.
+disso, o ambiente local n\~ao representa um cluster Spark de produ\c{c}\~ao, e a
+reprodu\c{c}\~ao online gratuita executa master e workers em containers dentro da
+mesma m\'aquina virtual. Por fim, a grade de hiperpar\^ametros do ALS foi
+pequena, privilegiando custo computacional controlado em vez de busca
+extensiva.
 
 \section{Conclus\~ao}
 
-Este artigo apresentou uma pipeline local e reprodut\'ivel para benchmark de
+Este artigo apresentou uma pipeline reprodut\'ivel para benchmark de
 recomenda\c{c}\~ao de produtos com Apache Spark. A partir do dataset RetailRocket,
 foram implementadas etapas de limpeza, pondera\c{c}\~ao de eventos,
 agrega\c{c}\~ao, split temporal, treino, avalia\c{c}\~ao top-$k$ e an\'alise de
 desempenho. Nos experimentos realizados, a coocorr\^encia item-item apresentou
 o melhor desempenho de qualidade e a maior cobertura, superando popularidade
-e ALS nas configura\c{c}\~oes avaliadas.
+e ALS nas configura\c{c}\~oes avaliadas. A reprodu\c{c}\~ao online em Codespaces
+mostrou que a mesma pipeline pode ser executada em um cluster Spark
+standalone gratuito, produzindo m\'etricas de executores, tarefas e shuffle
+para complementar os tempos locais.
 
 Como trabalhos futuros, prop\~oe-se ampliar a busca de hiperpar\^ametros,
 avaliar modelos sequenciais, incorporar atributos de produto, executar os
-experimentos em cluster Spark e realizar an\'alises estat\'isticas com m\'ultiplas
-rodadas para reduzir a influ\^encia de variabilidade local.
+experimentos em clusters com m\'ultiplas m\'aquinas e realizar an\'alises
+estat\'isticas com m\'ultiplas rodadas para reduzir a influ\^encia de
+variabilidade local.
 
 \bibliographystyle{sbc}
 \bibliography{referencias}

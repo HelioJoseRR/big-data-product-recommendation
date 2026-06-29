@@ -9,7 +9,7 @@ lint:
 	ruff check src tests
 
 test:
-	pytest -q
+	pytest -q tests
 
 check-data:
 	PYTHONPATH=src python -m retailrocket_recsys.cli check-data
