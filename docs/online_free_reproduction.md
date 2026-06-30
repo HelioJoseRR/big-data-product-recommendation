@@ -93,7 +93,23 @@ Durante a execucao, acompanhe:
 - `http://localhost:4040`: jobs, stages, SQL, executors e storage da aplicacao ativa.
 - `http://localhost:18080`: historico apos a aplicacao encerrar.
 
-## 6. Rodar o benchmark completo
+## 6. Rodar 100% da base no Codespaces
+
+Para reproduzir toda a base sem executar a grade completa de fracoes e
+hiperparametros, use 100% dos usuarios e mantenha o modo `--smoke` para o ALS.
+Esse foi o perfil usado no artigo para a medicao online gratuita:
+
+```bash
+docker compose -f docker-compose.cluster.yml exec -T app \
+  python -m retailrocket_recsys.cli benchmark \
+  --config-path configs/codespaces-cluster.yaml \
+  --fractions 1.0 \
+  --partitions 4 \
+  --models popularity,cooccurrence,als \
+  --smoke
+```
+
+## 7. Rodar o benchmark completo
 
 Use apenas se o benchmark reduzido finalizou e a cota do Codespaces permitir.
 Em perfis pequenos, o benchmark completo pode encerrar por limite de memoria ou
@@ -112,7 +128,7 @@ O benchmark completo avalia:
 - modelos `popularity`, `cooccurrence` e `als`;
 - leitura CSV versus Parquet.
 
-## 7. Gerar perfil, dados processados e relatorio
+## 8. Gerar perfil, dados processados e relatorio
 
 ```bash
 docker compose -f docker-compose.cluster.yml exec -T app \
@@ -128,7 +144,7 @@ docker compose -f docker-compose.cluster.yml exec -T app \
   --config-path configs/codespaces-cluster.yaml
 ```
 
-## 8. Coletar metricas do cluster
+## 9. Coletar metricas do cluster
 
 Registre no artigo:
 
@@ -164,7 +180,7 @@ curl "http://localhost:18080/api/v1/applications/<app-id>/jobs?status=SUCCEEDED"
 curl "http://localhost:18080/api/v1/applications/<app-id>/stages?status=complete"
 ```
 
-## 9. Salvar resultados
+## 10. Salvar resultados
 
 Os artefatos ficam no workspace do Codespace:
 
@@ -179,7 +195,18 @@ Baixe esses arquivos pelo painel do Codespaces ou compacte:
 tar -czf online-results.tar.gz results data/interim/spark-events
 ```
 
-## 10. Encerrar o cluster para poupar cota
+Para compilar o artigo com as figuras da reproducao online sem sobrescrever as
+figuras do benchmark local, preserve uma copia com prefixo `cluster_`:
+
+```bash
+cp results/figures/precision_recall_by_model.png results/figures/cluster_precision_recall_by_model.png
+cp results/figures/coverage_by_model.png results/figures/cluster_coverage_by_model.png
+cp results/figures/runtime_by_fraction.png results/figures/cluster_runtime_by_fraction.png
+cp results/figures/runtime_by_partitions.png results/figures/cluster_runtime_by_partitions.png
+cp results/figures/storage_csv_vs_parquet.png results/figures/cluster_storage_csv_vs_parquet.png
+```
+
+## 11. Encerrar o cluster para poupar cota
 
 ```bash
 docker compose -f docker-compose.cluster.yml down

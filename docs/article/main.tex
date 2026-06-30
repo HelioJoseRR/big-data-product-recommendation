@@ -329,33 +329,34 @@ formatos.
 \subsection{Reprodu\c{c}\~ao online gratuita}
 
 A reprodu\c{c}\~ao online foi executada no perfil Spark standalone em
-containers, usando 25\% dos usu\'arios, 4 parti\c{c}\~oes e a primeira
+containers, usando 100\% dos usu\'arios, 4 parti\c{c}\~oes e a primeira
 configura\c{c}\~ao do ALS. A aplica\c{c}\~ao Spark
-\texttt{app-20260629000857-0000} iniciou em 2026-06-29 00:08:56 UTC e
-encerrou em 2026-06-29 00:12:10 UTC, com dura\c{c}\~ao de 194{,}08 s no
+\texttt{app-20260629003741-0000} iniciou em 2026-06-29 00:37:39 UTC e
+encerrou em 2026-06-29 00:50:13 UTC, com dura\c{c}\~ao de 754{,}23 s no
 History Server. A Tabela~\ref{tab:cluster-modelos} mostra os resultados dos
 modelos nessa reprodu\c{c}\~ao.
 
 \begin{table}[!htbp]
 \centering
-\caption{Resultados da reprodu\c{c}\~ao online em cluster com 25\% do dataset.}
+\caption{Resultados da reprodu\c{c}\~ao online em cluster com 100\% do dataset.}
 \label{tab:cluster-modelos}
 \begin{tabular}{lrrrrrr}
 \toprule
 Modelo & Prec@10 & Rec@10 & MAP@10 & NDCG@10 & Cob. & Tempo (s) \\
 \midrule
-Popularidade & 0{,}001709 & 0{,}009402 & 0{,}002422 & 0{,}004622 & 0{,}000410 & 18{,}98 \\
-Coocorr\^encia & 0{,}006034 & 0{,}028736 & 0{,}017670 & 0{,}023696 & 0{,}700806 & 23{,}64 \\
-ALS rank 8 & 0{,}000855 & 0{,}008547 & 0{,}001068 & 0{,}002696 & 0{,}002328 & 49{,}53 \\
+Popularidade & 0{,}002595 & 0{,}010431 & 0{,}003280 & 0{,}006203 & 0{,}000288 & 60{,}16 \\
+Coocorr\^encia & 0{,}011400 & 0{,}043510 & 0{,}022586 & 0{,}033062 & 0{,}654491 & 358{,}85 \\
+ALS rank 8 & 0{,}002595 & 0{,}012160 & 0{,}005304 & 0{,}008313 & 0{,}001106 & 105{,}75 \\
 \bottomrule
 \end{tabular}
 \end{table}
 
 A Tabela~\ref{tab:cluster-spark} resume as m\'etricas de execu\c{c}\~ao
-coletadas pelo Spark History Server. A aplica\c{c}\~ao concluiu 143 jobs e 156
-stages, sem tarefas falhas. Os dois executores processaram 5.329 tarefas, com
-3{,}06 GiB de entrada, 453{,}42 MiB de shuffle lido e 427{,}58 MiB de shuffle
-escrito.
+coletadas pelo Spark History Server. A aplica\c{c}\~ao concluiu 143 jobs e 189
+stages completos. Houve 8 tentativas de tarefas falhas, mas nenhum stage
+falhou; o Spark relan\c{c}ou executores e concluiu a aplica\c{c}\~ao. No total,
+foram registradas 6.140 tarefas conclu\'idas nos stages completos, 4{,}95 GiB
+de entrada, 2{,}35 GiB de shuffle lido e 2{,}21 GiB de shuffle escrito.
 
 \begin{table}[!htbp]
 \centering
@@ -366,21 +367,67 @@ escrito.
 M\'etrica & Valor \\
 \midrule
 Workers & 2 \\
-Executores de worker & 2 \\
+Executores finais ativos & 2 \\
+Executores lan\c{c}ados & 5 \\
 Cores por executor & 1 \\
 Jobs conclu\'idos & 143 \\
-Stages conclu\'idos & 156 \\
-Tarefas conclu\'idas & 5.329 \\
-Tarefas falhas & 0 \\
-Tempo de aplica\c{c}\~ao & 194{,}08 s \\
-Tempo agregado dos executores & 324{,}25 s \\
-Tempo de GC da JVM & 3{,}61 s \\
-Entrada processada & 3{,}06 GiB \\
-Shuffle lido & 453{,}42 MiB \\
-Shuffle escrito & 427{,}58 MiB \\
+Stages conclu\'idos & 189 \\
+Tarefas conclu\'idas & 6.140 \\
+Tentativas de tarefas falhas & 8 \\
+Stages falhos & 0 \\
+Tempo de aplica\c{c}\~ao & 754{,}23 s \\
+Tempo agregado dos executores & 936{,}52 s \\
+Tempo de GC da JVM & 12{,}13 s \\
+Entrada processada & 4{,}95 GiB \\
+Shuffle lido & 2{,}35 GiB \\
+Shuffle escrito & 2{,}21 GiB \\
 \bottomrule
 \end{tabular}
 \end{table}
+
+As Figuras~\ref{fig:cluster-modelos} e~\ref{fig:cluster-runtime-storage}
+registram os gr\'aficos gerados diretamente a partir da execu\c{c}\~ao no
+Codespaces. Elas s\~ao mantidas separadas das figuras do benchmark local para
+evitar misturar ambientes de execu\c{c}\~ao.
+
+\begin{figure}[!htbp]
+\centering
+\begin{minipage}{.48\textwidth}
+\centering
+{\small Precision@10 e Recall@10}\par
+\includegraphics[width=\textwidth]{cluster_precision_recall_by_model.png}
+\end{minipage}\hfill
+\begin{minipage}{.48\textwidth}
+\centering
+{\small Cobertura de cat\'alogo}\par
+\includegraphics[width=\textwidth]{cluster_coverage_by_model.png}
+\end{minipage}
+\caption{M\'etricas de qualidade e cobertura na reprodu\c{c}\~ao online em cluster.}
+\label{fig:cluster-modelos}
+\end{figure}
+
+\begin{figure}[!htbp]
+\centering
+\begin{minipage}{.48\textwidth}
+\centering
+{\small Tempo por fra\c{c}\~ao}\par
+\includegraphics[width=\textwidth]{cluster_runtime_by_fraction.png}
+\end{minipage}\hfill
+\begin{minipage}{.48\textwidth}
+\centering
+{\small Tempo por parti\c{c}\~ao}\par
+\includegraphics[width=\textwidth]{cluster_runtime_by_partitions.png}
+\end{minipage}
+\vspace{.6em}
+
+\begin{minipage}{.58\textwidth}
+\centering
+{\small CSV versus Parquet}\par
+\includegraphics[width=\textwidth]{cluster_storage_csv_vs_parquet.png}
+\end{minipage}
+\caption{Medi\c{c}\~oes complementares de tempo e armazenamento na reprodu\c{c}\~ao online em cluster.}
+\label{fig:cluster-runtime-storage}
+\end{figure}
 \clearpage
 
 \section{Discuss\~ao}
